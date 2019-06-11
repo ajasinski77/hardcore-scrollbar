@@ -1,138 +1,169 @@
 ;(function(root, factory) {
-  if (typeof exports === 'object') {
-    module.exports = factory(window, document)
-  } else {
-    root.SimpleScrollbar = factory(window, document)
-  }
+	if (typeof exports === 'object') {
+		module.exports = factory(window, document);
+	} else {
+		root.HardcoreScrollbar = factory(window, document);
+	}
 })(this, function(w, d) {
-  var raf = w.requestAnimationFrame || w.setImmediate || function(c) { return setTimeout(c, 0); };
+	var raf = w.requestAnimationFrame || w.setImmediate || function(c) { return setTimeout(c, 0); };
+	var scrollbarSize = 0
 
-  function initEl(el) {
-    if (Object.prototype.hasOwnProperty.call(el, 'data-simple-scrollbar')) return;
-    Object.defineProperty(el, 'data-simple-scrollbar', { value: new SimpleScrollbar(el) });
-  }
+	function test() {
+		raf(function() {
+			var testStyle = 'width:5em;height:5em;overflow:scroll;position:absolute;top:-1000em;left:-1000em;z-index:1000000;';
+			var testDiv = '<div id="___hardcrore_test_node" style="'+testStyle+'"><div></div></div>';
+			d.body.insertAdjacentHTML('beforeend', testDiv);
 
-  // Mouse drag handler
-  function dragDealer(el, context) {
-    var lastPageY;
+			testDiv = d.querySelector('#___hardcrore_test_node');
+			scrollbarSize = testDiv.offsetWidth-testDiv.clientWidth,
+			console.log(scrollbarSize);
 
-    el.addEventListener('mousedown', function(e) {
-      lastPageY = e.pageY;
-      el.classList.add('ss-grabbed');
-      d.body.classList.add('ss-grabbed');
+			testDiv.parentNode.removeChild(testDiv);
+			attachStyle();
+		});
+	}
 
-      d.addEventListener('mousemove', drag);
-      d.addEventListener('mouseup', stop);
+	function attachStyle() {
+		raf(function() {
+			var style = document.createElement('style');
+			style.appendChild(document.createTextNode(''));
+			d.head.appendChild(style);
 
-      return false;
-    });
+			style.sheet.insertRule('.ss-content { width: calc(100% + '+scrollbarSize+'px); }', 0);
+		});
+	}
 
-    function drag(e) {
-      var delta = e.pageY - lastPageY;
-      lastPageY = e.pageY;
+	function attach(el) {
+		if (Object.prototype.hasOwnProperty.call(el, 'data-hardcore-scrollbar')) {
+			return el['data-hardcore-scrollbar'];
+		}
 
-      raf(function() {
-        context.el.scrollTop += delta / context.scrollRatio;
-      });
-    }
+		var instance = new HardcoreScrollbar(el);
+		Object.defineProperty(el, 'data-hardcore-scrollbar', { value: instance });
 
-    function stop() {
-      el.classList.remove('ss-grabbed');
-      d.body.classList.remove('ss-grabbed');
-      d.removeEventListener('mousemove', drag);
-      d.removeEventListener('mouseup', stop);
-    }
-  }
+		return instance;
+	}
 
-  // Constructor
-  function ss(el) {
-    this.target = el;
+	function dragDealer(el, context) {
+		var lastPageY;
 
-    this.direction = w.getComputedStyle(this.target).direction;
+		el.addEventListener('mousedown', function(e) {
+			lastPageY = e.pageY;
+			el.classList.add('ss-grabbed');
+			d.body.classList.add('ss-grabbed');
 
-    this.bar = '<div class="ss-scroll">';
+			d.addEventListener('mousemove', drag);
+			d.addEventListener('mouseup', stop);
 
-    this.wrapper = d.createElement('div');
-    this.wrapper.setAttribute('class', 'ss-wrapper');
+			return false;
+		});
 
-    this.el = d.createElement('div');
-    this.el.setAttribute('class', 'ss-content');
+		function drag(e) {
+			var delta = e.pageY - lastPageY;
+			lastPageY = e.pageY;
 
-    if (this.direction === 'rtl') {
-      this.el.classList.add('rtl');
-    }
+			raf(function() {
+				context.el.scrollTop += (delta / context.scrollRatio * context.dragRatio);
+			});
+		}
 
-    this.wrapper.appendChild(this.el);
+		function stop() {
+			el.classList.remove('ss-grabbed');
+			d.body.classList.remove('ss-grabbed');
+			d.removeEventListener('mousemove', drag);
+			d.removeEventListener('mouseup', stop);
+		}
+	}
 
-    while (this.target.firstChild) {
-      this.el.appendChild(this.target.firstChild);
-    }
-    this.target.appendChild(this.wrapper);
+	// Constructor
+	function ss(el) {
+		this.target = el;
+		this.bar = '<div class="ss-track"><div class="ss-scroll"></div>';
 
-    this.target.insertAdjacentHTML('beforeend', this.bar);
-    this.bar = this.target.lastChild;
+		this.wrapper = d.createElement('div');
+		this.wrapper.setAttribute('class', 'ss-wrapper');
 
-    dragDealer(this.bar, this);
-    this.moveBar();
+		this.el = d.createElement('div');
+		this.el.setAttribute('class', 'ss-content');
 
-    w.addEventListener('resize', this.moveBar.bind(this));
-    this.el.addEventListener('scroll', this.moveBar.bind(this));
-    this.el.addEventListener('mouseenter', this.moveBar.bind(this));
+		this.wrapper.appendChild(this.el);
 
-    this.target.classList.add('ss-container');
+		while(this.target.firstChild) {
+			this.el.appendChild(this.target.firstChild);
+		}
+		this.target.appendChild(this.wrapper);
 
-    var css = w.getComputedStyle(el);
-    if (css['height'] === '0px' && css['max-height'] !== '0px') {
-      el.style.height = css['max-height'];
-    }
-  
-    this.observer = new MutationObserver(function(list) {
-      if(list.length) this.moveBar();
-    }.bind(this));
-    
-    this.observer.observe(this.el, {
-      childList: true,
-      subtree: true,
-    });
-  }
+		this.target.insertAdjacentHTML('beforeend', this.bar);
+		this.bar = this.target.lastChild.lastChild;
+		this.track = this.target.lastChild;
 
-  ss.prototype = {
-    moveBar: function(e) {
-      var totalHeight = this.el.scrollHeight,
-          ownHeight = this.el.clientHeight,
-          _this = this;
+		dragDealer(this.bar, this);
+		this.moveBar();
 
-      this.scrollRatio = ownHeight / totalHeight;
+		// let's stop the listener spam. Need a refernce to this exact context to later remove the listener.
+		this.moveHandlerBound = this.moveBar.bind(this);
 
-      var isRtl = _this.direction === 'rtl';
-      var right = isRtl ?
-        (_this.target.clientWidth - _this.bar.clientWidth + 18) :
-        (_this.target.clientWidth - _this.bar.clientWidth) * -1;
+		w.addEventListener('resize', this.moveHandlerBound);
+		this.el.addEventListener('scroll', this.moveHandlerBound);
+		this.el.addEventListener('mouseenter', this.moveHandlerBound);
 
-      raf(function() {
-        // Hide scrollbar if no scrolling is possible
-        if(_this.scrollRatio >= 1) {
-          _this.bar.classList.add('ss-hidden')
-        } else {
-          _this.bar.classList.remove('ss-hidden')
-          _this.bar.style.cssText = 'height:' + Math.max(_this.scrollRatio * 100, 10) + '%; top:' + (_this.el.scrollTop / totalHeight ) * 100 + '%;right:' + right + 'px;';
-        }
-      });
-    }
-  }
+		this.target.classList.add('ss-container');
 
-  function initAll() {
-    var nodes = d.querySelectorAll('*[ss-container]');
+		var css = w.getComputedStyle(el);
+		if (css['height'] === '0px' && css['max-height'] !== '0px') {
+			el.style.height = css['max-height'];
+		}
 
-    for (var i = 0; i < nodes.length; i++) {
-      initEl(nodes[i]);
-    }
-  }
+		this.observer = new MutationObserver(function(list) {
+			if(list.length) this.moveBar();
+		}.bind(this));
 
-  d.addEventListener('DOMContentLoaded', initAll);
-  ss.initEl = initEl;
-  ss.initAll = initAll;
+		this.observer.observe(this.el, {
+			childList: true,
+			subtree: true,
+		});
 
-  var SimpleScrollbar = ss;
-  return SimpleScrollbar;
+		this.destroy = destroy.bind(this);
+	}
+
+	function destroy() {
+		// we could create a mutation observer on the container but I'm too lazy to check whether it fires
+		// consistently when parent node is destroyed too. Just call this inside whatever code instantiated
+		// the scrollbar when the element is destroyed. Use instance returned from attach(). If we don't have
+		// instance, calling attach() again on the same node will return it.
+		w.removeEventListener('resize', this.moveHandlerBound);
+		this.el.removeEventListener('scroll', this.moveHandlerBound);
+		this.el.removeEventListener('mouseenter', this.moveHandlerBound);
+
+		this.observer.disconnect();
+	}
+
+	ss.prototype = {
+		moveBar: function() {
+			var totalHeight = this.el.scrollHeight;
+			var ownHeight = this.el.clientHeight;
+			this.scrollRatio = ownHeight / totalHeight;
+
+			// need to correct the drag ratio if track has been restyled to be of a different size than the container
+			this.dragRatio = this.wrapper.clientHeight/this.track.clientHeight;
+
+			var _this = this;
+			var right = (_this.target.clientWidth - _this.bar.clientWidth) * -1;
+
+			raf(function() {
+				if(_this.scrollRatio >= 1) {
+					_this.bar.classList.add('ss-hidden');
+				} else {
+					_this.bar.classList.remove('ss-hidden');
+					_this.bar.style.cssText = 'height:' + (_this.scrollRatio * 100) + '%; top:' + (_this.el.scrollTop / totalHeight ) * 100 + '%;right:' + right + 'px;';
+				}
+			});
+		}
+	}
+
+	ss.attach = attach;
+	test();
+
+	var HardcoreScrollbar = ss;
+	return HardcoreScrollbar;
 });
