@@ -16,7 +16,6 @@
 
 			testDiv = d.querySelector('#___hardcrore_test_node');
 			scrollbarSize = testDiv.offsetWidth-testDiv.clientWidth,
-			console.log(scrollbarSize);
 
 			testDiv.parentNode.removeChild(testDiv);
 			attachStyle();
