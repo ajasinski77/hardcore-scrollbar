@@ -9,13 +9,16 @@
 	var scrollbarSize = 0
 
 	function test() {
+		// find scrollbar width dynamically upon init instead of hardcoding it to 18px
 		raf(function() {
 			var testStyle = 'width:5em;height:5em;overflow:scroll;position:absolute;top:-1000em;left:-1000em;z-index:1000000;';
 			var testDiv = '<div id="___hardcrore_test_node" style="'+testStyle+'"><div></div></div>';
 			d.body.insertAdjacentHTML('beforeend', testDiv);
 
 			testDiv = d.querySelector('#___hardcrore_test_node');
-			scrollbarSize = testDiv.offsetWidth-testDiv.clientWidth,
+			scrollbarSize = testDiv.offsetWidth-testDiv.clientWidth;
+
+			if(scrollbarSize <= 0) d.body.classList.add('hs-scrollbar-width-zero');
 
 			testDiv.parentNode.removeChild(testDiv);
 			attachStyle();
@@ -113,11 +116,8 @@
 			el.style.height = css['max-height'];
 		}
 
-		this.observer = new MutationObserver(function(list) {
-			if(list.length) this.moveBar();
-		}.bind(this));
-
-		this.observer.observe(this.el, {
+		this.resizeObserver = new ResizeObserver(this.moveHandlerBound).observe(this.wrapper);
+		this.contentObserver = new MutationObserver(this.moveBar.bind(this)).observe(this.el, {
 			childList: true,
 			subtree: true,
 		});
@@ -134,7 +134,8 @@
 		this.el.removeEventListener('scroll', this.moveHandlerBound);
 		this.el.removeEventListener('mouseenter', this.moveHandlerBound);
 
-		this.observer.disconnect();
+		this.resizeObserver.disconnect();
+		this.contentObserver.disconnect();
 	}
 
 	ss.prototype = {
