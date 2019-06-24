@@ -11,13 +11,16 @@
 	function test() {
 		// find scrollbar width dynamically upon init instead of hardcoding it to 18px
 		raf(function() {
+			// Chrome doesn't fire requestAnimationFrame before onload but Firefox does?
+			if(!d.body) return;
+			
 			var testStyle = 'width:5em;height:5em;overflow:scroll;position:absolute;top:-1000em;left:-1000em;z-index:1000000;';
 			var testDiv = '<div id="___hardcrore_test_node" style="'+testStyle+'"><div></div></div>';
 			d.body.insertAdjacentHTML('beforeend', testDiv);
-
+			
 			testDiv = d.querySelector('#___hardcrore_test_node');
 			scrollbarSize = testDiv.offsetWidth-testDiv.clientWidth;
-
+			
 			if(scrollbarSize <= 0) d.body.classList.add('hs-scrollbar-width-zero');
 
 			testDiv.parentNode.removeChild(testDiv);
@@ -117,6 +120,7 @@
 		}
 
 		this.resizeObserver = new ResizeObserver(this.moveHandlerBound).observe(this.wrapper);
+		
 		this.contentObserver = new MutationObserver(this.moveBar.bind(this)).observe(this.el, {
 			childList: true,
 			subtree: true,
@@ -133,9 +137,10 @@
 		w.removeEventListener('resize', this.moveHandlerBound);
 		this.el.removeEventListener('scroll', this.moveHandlerBound);
 		this.el.removeEventListener('mouseenter', this.moveHandlerBound);
-
-		this.resizeObserver.disconnect();
-		this.contentObserver.disconnect();
+		
+		// is this before or after the element is removed from DOM? this may vary depening on use
+		if(this.resizeObserver) this.resizeObserver.disconnect();
+		if(this.contentObserver) this.contentObserver.disconnect();
 	}
 
 	ss.prototype = {
@@ -162,7 +167,10 @@
 	}
 
 	ss.attach = attach;
+	
+	// again, Firefox does this ASAP but Chrome waits for onload
 	test();
+	w.addEventListener('load', test);
 
 	var HardcoreScrollbar = ss;
 	return HardcoreScrollbar;
